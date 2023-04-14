@@ -1,10 +1,15 @@
-package com.hedgehog.futurescalculator
+package com.hedgehog.futurescalculator.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hedgehog.futurescalculator.domain.model.Settings
 import com.hedgehog.futurescalculator.domain.usecase.SettingsUseCase
 import com.hedgehog.futurescalculator.data.EncryptionManager
+import com.hedgehog.futurescalculator.domain.model.History
+import com.hedgehog.futurescalculator.domain.usecase.HistoryUseCase
+import com.hedgehog.futurescalculator.ui.model.HistoryItemModel
+import com.hedgehog.futurescalculator.utils.mapping.toItemModel
+import com.hedgehog.futurescalculator.utils.round
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -19,6 +24,7 @@ import javax.inject.Inject
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val settingsUseCase: SettingsUseCase,
+    private val historyUseCase: HistoryUseCase,
     private val encryptionManager: EncryptionManager
 ) :
     ViewModel() {
@@ -35,59 +41,57 @@ class MainViewModel @Inject constructor(
                     profitPercent = it.profit,
                     riskPercent = it.loss,
                     leverage = it.leverage,
-                    mode = State.Mode.LONG
+                    position = it.position
                 )
+            }
+        }
+
+        viewModelScope.launch {
+            historyUseCase.getHistory().collect {
+                _stateFlow.update { state ->
+                    state.copy(historyList = it.map {
+                        it.toItemModel()
+                    })
+                }
             }
         }
     }
 
     fun updateInput(input: String) {
-        encryptionManager.encrypt(input.toByteArray(), null)
+//        encryptionManager.encrypt(input.toByteArray(), null)
         _stateFlow.update { state ->
             createState(
                 input = input,
                 profitPercent = state.profitPercent,
                 riskPercent = state.lossPercent,
                 leverage = state.leverage,
-                mode = state.mode
+                position = state.position
             )
         }
     }
 
     fun updateLossPercent(inputRisk: String) {
-        val inputRiskUpdated = if (inputRisk.isEmpty()) {
-            0
-        } else if (_stateFlow.value.lossPercent == 0) {
-            inputRisk.replace("0", "").toInt()
-        } else {
-            inputRisk.toInt()
-        }
+        val inputRiskUpdated = formatProfitLoss(inputRisk, _stateFlow.value.lossPercent)
         _stateFlow.update { state ->
             createState(
                 input = state.inputValue,
                 profitPercent = state.profitPercent,
                 riskPercent = inputRiskUpdated,
                 leverage = state.leverage,
-                mode = state.mode
+                position = state.position
             )
         }
     }
 
     fun updateProfitPercent(profitPercent: String) {
-        val profitPercentUpdated = if (profitPercent.isEmpty()) {
-            0
-        } else if (_stateFlow.value.profitPercent == 0) {
-            profitPercent.replace("0", "").toInt()
-        } else {
-            profitPercent.toInt()
-        }
+        val profitPercentUpdated = formatProfitLoss(profitPercent, _stateFlow.value.profitPercent)
         _stateFlow.update { state ->
             createState(
                 input = state.inputValue,
                 profitPercent = profitPercentUpdated,
                 riskPercent = state.lossPercent,
                 leverage = state.leverage,
-                mode = state.mode
+                position = state.position
             )
         }
     }
@@ -100,7 +104,7 @@ class MainViewModel @Inject constructor(
                 profitPercent = state.profitPercent,
                 riskPercent = state.lossPercent,
                 leverage = leverage,
-                mode = state.mode
+                position = state.position
             )
         }
     }
@@ -113,21 +117,42 @@ class MainViewModel @Inject constructor(
                 profitPercent = state.profitPercent,
                 riskPercent = state.lossPercent,
                 leverage = leverage,
-                mode = state.mode
+                position = state.position
             )
         }
     }
 
-    fun updateMode(mode: State.Mode) {
+    fun updatePosition(position: Settings.Position) {
         _stateFlow.update { state ->
             createState(
                 input = state.inputValue,
                 profitPercent = state.profitPercent,
                 riskPercent = state.lossPercent,
                 leverage = state.leverage,
-                mode = mode
+                position = position
             )
         }
+    }
+
+    fun onSaveClicked() {
+        viewModelScope.launch {
+            _stateFlow.value.also { state ->
+                historyUseCase.addHistory(
+                    History(
+                        id = 0,
+                        entryPrice = state.inputValue.toFloat(),
+                        profit = state.profitPercent,
+                        loss = state.lossPercent,
+                        leverage = state.leverage,
+                        position = state.position
+                    )
+                )
+            }
+        }
+    }
+
+    fun onClearHistoryClicked() {
+        historyUseCase.clearHistory()
     }
 
     private fun createState(
@@ -135,19 +160,24 @@ class MainViewModel @Inject constructor(
         profitPercent: Int,
         riskPercent: Int,
         leverage: Int,
-        mode: State.Mode
+        position: Settings.Position
     ): State {
         val takeProfit: Float
         val stopLoss: Float
-        val inputValue = if (input.isEmpty()) 0f else input.toFloat()
-        when (mode) {
-            State.Mode.LONG -> {
+        val inputValue = try {
+            input.replace(",", ".").toFloat()
+        } catch (e: Exception) {
+            0f
+        }
+
+        when (position) {
+            Settings.Position.LONG -> {
                 takeProfit =
                     inputValue + inputValue * (profitPercent / 100f / leverage)
                 stopLoss =
                     inputValue - inputValue * (riskPercent / 100f / leverage)
             }
-            State.Mode.SHORT -> {
+            Settings.Position.SHORT -> {
                 takeProfit =
                     inputValue - inputValue * (profitPercent / 100f / leverage)
                 stopLoss =
@@ -162,11 +192,37 @@ class MainViewModel @Inject constructor(
                     entryPrice = inputValue,
                     profit = profitPercent,
                     loss = riskPercent,
-                    leverage = leverage
+                    leverage = leverage,
+                    position = position
                 )
             )
         }
-        return State(input, profitPercent, riskPercent, leverage, stopLoss, takeProfit, mode)
+        return State(
+            input,
+            profitPercent,
+            riskPercent,
+            leverage,
+            stopLoss.round(1),
+            takeProfit.round(1),
+            position,
+            _stateFlow.value.historyList
+        )
+    }
+
+    private fun formatProfitLoss(value: String, previousValue: Int) = if (value.isEmpty()) {
+        0
+    } else if (previousValue == 0) {
+        try {
+            value.replace("0", "").toInt()
+        } catch (ex: Exception) {
+            0
+        }
+    } else {
+        try {
+            value.toInt()
+        } catch (ex: Exception) {
+            0
+        }
     }
 
     data class State(
@@ -176,12 +232,9 @@ class MainViewModel @Inject constructor(
         val leverage: Int,
         val stopLoss: Float,
         val takeProfit: Float,
-        val mode: Mode
+        val position: Settings.Position,
+        val historyList: List<HistoryItemModel>
     ) {
-
-        enum class Mode {
-            LONG, SHORT
-        }
 
         companion object {
             fun default() = State(
@@ -191,7 +244,8 @@ class MainViewModel @Inject constructor(
                 leverage = 1,
                 stopLoss = 0f,
                 takeProfit = 0f,
-                mode = Mode.LONG
+                position = Settings.Position.LONG,
+                historyList = emptyList()
             )
         }
     }

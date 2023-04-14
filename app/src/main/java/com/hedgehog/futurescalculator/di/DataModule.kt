@@ -3,11 +3,12 @@ package com.hedgehog.futurescalculator.di
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.DataStoreFactory
-import androidx.datastore.dataStore
 import androidx.datastore.dataStoreFile
-import androidx.datastore.preferences.SharedPreferencesMigration
+import androidx.room.Room
 import com.hedgehog.futurescalculator.data.*
 import com.hedgehog.futurescalculator.data.EncryptionManager
+import com.hedgehog.futurescalculator.data.database.FuturesDatabase
+import com.hedgehog.futurescalculator.data.database.dao.HistoryDao
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -17,6 +18,8 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import net.sqlcipher.database.SQLiteDatabase
+import net.sqlcipher.database.SupportFactory
 import java.security.KeyStore
 
 @InstallIn(SingletonComponent::class)
@@ -45,6 +48,19 @@ abstract class DataModule {
                 load(null)
             }
         }
+
+        @Provides
+        fun provideDataSource(@ApplicationContext context: Context): FuturesDatabase {
+            val factory = SupportFactory(SQLiteDatabase.getBytes("PassPhrase".toCharArray()))
+            return Room.databaseBuilder(context, FuturesDatabase::class.java, "FuturesDataSource")
+                .openHelperFactory(factory)
+                .build()
+        }
+
+        @Provides
+        fun provideHistoryDao(futuresDatabase: FuturesDatabase): HistoryDao {
+            return futuresDatabase.historyDao
+        }
     }
 
     @Binds
@@ -52,6 +68,9 @@ abstract class DataModule {
 
     @Binds
     abstract fun bindKeyStoreDataSource(keyStoreDataSource: KeyStoreDataSourceImpl): KeyStoreDataSource
+
+    @Binds
+    abstract fun bindHistoryDataSource(historyDataSource: HistoryDataSourceImpl): HistoryDataSource
 }
 
 private const val DATA_STORE_FILE_NAME = "CacheDataStore"

@@ -20,7 +20,8 @@ class CacheDataSourceImpl @Inject constructor(private val dataStore: DataStore<S
                 settings.entryPrice,
                 settings.profit,
                 settings.loss,
-                settings.leverage
+                settings.leverage,
+                settings.position
             )
         }
     }
@@ -31,7 +32,8 @@ class CacheDataSourceImpl @Inject constructor(private val dataStore: DataStore<S
                 it.entryPrice,
                 it.profit,
                 it.loss,
-                it.leverage
+                it.leverage,
+                it.position
             )
         }
     }

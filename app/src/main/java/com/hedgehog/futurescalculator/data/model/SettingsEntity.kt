@@ -2,6 +2,7 @@ package com.hedgehog.futurescalculator.data
 
 import androidx.datastore.core.Serializer
 import com.google.gson.Gson
+import com.hedgehog.futurescalculator.domain.model.Settings
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -9,14 +10,15 @@ data class SettingsEntity(
     val entryPrice: Float = 0f,
     val profit: Int = 0,
     val loss: Int = 0,
-    val leverage: Int = 0
+    val leverage: Int = 0,
+    val position: Settings.Position
 )
 
 class SettingsEntitySerializer(
     private val encryptionManager: EncryptionManager
 ) : Serializer<SettingsEntity> {
     override val defaultValue: SettingsEntity
-        get() = SettingsEntity(0f, 0, 0, 1)
+        get() = SettingsEntity(0f, 0, 0, 1, Settings.Position.LONG)
 
     override suspend fun readFrom(input: InputStream): SettingsEntity {
         val decryptedBytes = encryptionManager.decrypt(input)
