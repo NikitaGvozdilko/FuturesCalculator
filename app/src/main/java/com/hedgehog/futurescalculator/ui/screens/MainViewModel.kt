@@ -152,7 +152,9 @@ class MainViewModel @Inject constructor(
     }
 
     fun onClearHistoryClicked() {
-        historyUseCase.clearHistory()
+        viewModelScope.launch {
+            historyUseCase.clearHistory()
+        }
     }
 
     private fun createState(
