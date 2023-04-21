@@ -228,59 +228,6 @@ private fun HistoryList(historyList: List<HistoryItemModel> = emptyList()) {
                 Cell("Profit")
                 Cell("Loss")
             }
-//            Row(modifier = Modifier.fillMaxWidth()) {
-//                Cell("16000")
-//                Cell("60%")
-//                Cell("20%")
-//                Cell("10x")
-//                Cell("Long")
-//                Cell("20000")
-//                Cell("12000")
-//            }
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//            ) {
-//                Cell("16000")
-//                Cell("60%")
-//                Cell("20%")
-//                Cell("10x")
-//                Cell("Long")
-//                Cell("20000")
-//                Cell("12000")
-//            }
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//            ) {
-//                Cell("16000")
-//                Cell("60%")
-//                Cell("20%")
-//                Cell("10x")
-//                Cell("Long")
-//                Cell("20000")
-//                Cell("12000")
-//            }
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//            ) {
-//                Cell("16000")
-//                Cell("60%")
-//                Cell("20%")
-//                Cell("10x")
-//                Cell("Long")
-//                Cell("20000")
-//                Cell("12000")
-//            }
-//            Row(
-//                modifier = Modifier.fillMaxWidth(),
-//            ) {
-//                Cell("16000")
-//                Cell("60%")
-//                Cell("20%")
-//                Cell("10x")
-//                Cell("Long")
-//                Cell("20000")
-//                Cell("12000")
-//            }
         }
         items(historyList) { item ->
             Row(

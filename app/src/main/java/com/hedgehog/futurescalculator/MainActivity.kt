@@ -28,6 +28,7 @@ class MainActivity : ComponentActivity() {
                     CalculationScreen()
                 }
             }
+            this.reportFullyDrawn()
         }
     }
 }
